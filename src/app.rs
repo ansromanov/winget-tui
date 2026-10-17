@@ -58,7 +58,7 @@ pub enum AppMessage {
     Error(String),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AppMode {
     Search,
     Installed,
@@ -109,6 +109,23 @@ pub struct ConfirmDialog {
     pub operation: Operation,
 }
 
+#[derive(Clone)]
+struct CachedView {
+    packages: Option<Vec<Package>>,
+    filtered_packages: Option<Vec<Package>>,
+    selected: usize,
+    selected_packages: HashSet<usize>,
+    local_filter: String,
+    search_query: String,
+    source_filter: SourceFilter,
+    pin_filter: PinFilter,
+    sort_field: SortField,
+    sort_dir: SortDir,
+    table_offset: usize,
+    detail_scroll: usize,
+    focus: FocusZone,
+}
+
 pub struct App {
     pub theme: Theme,
     pub mode: AppMode,
@@ -153,6 +170,8 @@ pub struct App {
     pub detail_generation: u64,
     /// Cache of package details to avoid repeated winget show calls
     pub detail_cache: HashMap<String, PackageDetail>,
+    view_cache: HashMap<AppMode, CachedView>,
+    has_loaded_view: bool,
     /// Indices into filtered_packages that are selected for batch operations
     pub selected_packages: HashSet<usize>,
     /// A high-signal status message to restore after the next list refresh completes.
@@ -265,6 +284,8 @@ impl App {
             view_generation: 0,
             detail_generation: 0,
             detail_cache: HashMap::new(),
+            view_cache: HashMap::new(),
+            has_loaded_view: false,
             selected_packages: HashSet::new(),
             post_refresh_status: None,
             backend,
@@ -456,7 +477,74 @@ impl App {
             format!("Additional metadata is not available from {source} for this package.");
     }
 
+    pub fn cache_current_view(&mut self) {
+        self.view_cache.insert(
+            self.mode,
+            CachedView {
+                packages: self.has_loaded_view.then(|| self.packages.clone()),
+                filtered_packages: self.has_loaded_view.then(|| self.filtered_packages.clone()),
+                selected: self.selected,
+                selected_packages: if self.has_loaded_view {
+                    self.selected_packages.clone()
+                } else {
+                    HashSet::new()
+                },
+                local_filter: self.local_filter.clone(),
+                search_query: self.search_query.clone(),
+                source_filter: self.source_filter.clone(),
+                pin_filter: self.pin_filter,
+                sort_field: self.sort_field,
+                sort_dir: self.sort_dir,
+                table_offset: self.table_state.offset(),
+                detail_scroll: self.detail_scroll,
+                focus: self.focus,
+            },
+        );
+    }
+
+    /// Restore a mode's previous data and UI state. Returns true when its package
+    /// data is cached and does not need to be loaded again.
+    pub fn restore_cached_view(&mut self, mode: AppMode) -> Option<bool> {
+        let cache = self.view_cache.get(&mode).cloned()?;
+        let has_data = cache.packages.is_some() && cache.filtered_packages.is_some();
+        self.packages = cache.packages.unwrap_or_default();
+        self.filtered_packages = cache.filtered_packages.unwrap_or_default();
+        self.selected = cache
+            .selected
+            .min(self.filtered_packages.len().saturating_sub(1));
+        self.selected_packages = if has_data {
+            cache.selected_packages
+        } else {
+            HashSet::new()
+        };
+        self.local_filter = cache.local_filter;
+        self.search_query = cache.search_query;
+        self.source_filter = cache.source_filter;
+        self.pin_filter = cache.pin_filter;
+        self.sort_field = cache.sort_field;
+        self.sort_dir = cache.sort_dir;
+        *self.table_state.offset_mut() = cache.table_offset;
+        self.detail_scroll = cache.detail_scroll;
+        self.focus = cache.focus;
+        self.has_loaded_view = has_data;
+        Some(has_data)
+    }
+
+    pub fn invalidate_cached_views(&mut self) {
+        for view in self.view_cache.values_mut() {
+            view.packages = None;
+            view.filtered_packages = None;
+            view.selected_packages.clear();
+        }
+        self.has_loaded_view = false;
+    }
+
+    pub fn discard_cached_view(&mut self, mode: AppMode) {
+        self.view_cache.remove(&mode);
+    }
+
     pub fn refresh_view(&mut self) {
+        self.has_loaded_view = false;
         self.view_generation += 1;
         let generation = self.view_generation;
         let backend = self.backend.clone();
@@ -751,6 +839,7 @@ impl App {
                     let prev_id = self.selected_package().map(|p| p.id.clone());
                     self.packages = packages;
                     self.apply_filter();
+                    self.has_loaded_view = true;
                     // Restore cursor to the same package (if it is still present)
                     // so that pressing 'r' to refresh does not jump the cursor.
                     if let Some(id) = prev_id {
@@ -845,6 +934,7 @@ impl App {
                             Operation::BatchUpgrade { .. } | Operation::BatchUninstall { .. }
                         )
                     {
+                        self.invalidate_cached_views();
                         self.post_refresh_status = Some(status);
                         self.loading = true;
                         self.refresh_view();

@@ -139,10 +139,20 @@ fn handle_search_input(app: &mut App, key: KeyCode) -> anyhow::Result<bool> {
         KeyCode::Enter => {
             app.input_mode = InputMode::Normal;
             if !app.search_query.is_empty() {
-                app.mode = AppMode::Search;
-                app.loading = true;
-                app.set_status("Searching...");
-                app.refresh_view();
+                app.discard_cached_view(AppMode::Search);
+                if app.mode != AppMode::Search {
+                    switch_view(app, AppMode::Search);
+                } else {
+                    app.selected = 0;
+                    app.selected_packages.clear();
+                    *app.table_state.offset_mut() = 0;
+                    app.detail = None;
+                    app.detail_scroll = 0;
+                    app.detail_generation += 1;
+                    app.loading = true;
+                    app.set_status("Searching...");
+                    app.refresh_view();
+                }
             }
         }
         KeyCode::Backspace => {
@@ -615,24 +625,55 @@ fn confirm_batch_uninstall(app: &mut App) {
     }
 }
 
-/// Switch the active view/mode, resetting selection and triggering a refresh
+/// Switch views, restoring cached state or loading the view for the first time.
 fn switch_view(app: &mut App, new_mode: AppMode) {
     if new_mode == app.mode {
         return;
     }
+    app.cache_current_view();
     app.mode = new_mode;
     app.input_mode = InputMode::Normal;
-    app.local_filter.clear();
-    app.selected = 0;
-    app.selected_packages.clear();
     app.detail = None;
     app.detail_loading = false;
     // Invalidate any in-flight detail requests from the previous view
     app.detail_generation += 1;
-    app.focus = FocusZone::PackageList;
-    app.loading = true;
-    app.set_status("Loading...");
-    app.refresh_view();
+    app.post_refresh_status = None;
+
+    match app.restore_cached_view(new_mode) {
+        Some(true) => {
+            // Invalidate any in-flight list load from the previous view.
+            app.view_generation += 1;
+            app.loading = false;
+            app.set_status(format!(
+                "Restored {} cached package{}",
+                app.filtered_packages.len(),
+                if app.filtered_packages.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                }
+            ));
+            let detail_scroll = app.detail_scroll;
+            load_detail_for_selected(app);
+            app.detail_scroll = detail_scroll;
+        }
+        cached_state => {
+            if cached_state.is_none() {
+                app.local_filter.clear();
+                app.selected = 0;
+                app.selected_packages.clear();
+                app.packages.clear();
+                app.filtered_packages.clear();
+                app.table_state.select(None);
+                *app.table_state.offset_mut() = 0;
+                app.detail_scroll = 0;
+                app.focus = FocusZone::PackageList;
+            }
+            app.loading = true;
+            app.set_status("Loading...");
+            app.refresh_view();
+        }
+    }
 }
 
 /// Returns the number of visible data rows in the package list, based on the
@@ -958,7 +999,7 @@ mod tests {
     use ratatui::layout::Rect;
 
     use super::*;
-    use crate::app::{App, ConfirmDialog, InputMode};
+    use crate::app::{App, AppMessage, ConfirmDialog, InputMode};
     use crate::backend::WingetBackend;
     use crate::models::{Operation, Package, PackageDetail, PackagePin, PinState, Source};
 
@@ -2076,7 +2117,7 @@ mod tests {
         assert_eq!(app.table_state.offset(), 2); // scrolled up by 3
     }
 
-    // ── switch_view state reset ───────────────────────────────────────────────
+    // ── switch_view caching and state ─────────────────────────────────────────
 
     #[test]
     fn switch_view_clears_local_filter() {
@@ -2489,6 +2530,57 @@ mod tests {
         click_sort_header(&mut app, 50);
         assert_eq!(app.sort_field, SortField::Version);
         assert_eq!(app.sort_dir, SortDir::Asc);
+    }
+
+    #[test]
+    fn switching_back_restores_cached_packages_and_tab_state() {
+        let rt = test_runtime();
+        let _guard = rt.enter();
+        let mut app = make_app_with_pkgs(4);
+        app.mode = AppMode::Installed;
+        app.view_generation = 1;
+        app.message_tx
+            .send(AppMessage::PackagesLoaded {
+                generation: 1,
+                packages: app.packages.clone(),
+            })
+            .unwrap();
+        app.process_messages();
+        app.local_filter = "Package".to_string();
+        app.selected = 2;
+        app.selected_packages = [2usize].into_iter().collect();
+        app.sort_field = crate::models::SortField::Size;
+        app.sort_dir = crate::models::SortDir::Desc;
+        app.source_filter = crate::models::SourceFilter::Winget;
+        app.pin_filter = crate::models::PinFilter::PinnedOnly;
+        app.focus = crate::app::FocusZone::DetailPanel;
+        app.detail_scroll = 7;
+        *app.table_state.offset_mut() = 1;
+
+        let _ = handle_normal_mode(&mut app, KeyCode::Right, KeyModifiers::NONE);
+        assert_eq!(app.mode, AppMode::Upgrades);
+        assert!(app.packages.is_empty());
+        app.source_filter = crate::models::SourceFilter::MsStore;
+        app.pin_filter = crate::models::PinFilter::UnpinnedOnly;
+
+        let _ = handle_normal_mode(&mut app, KeyCode::Left, KeyModifiers::NONE);
+        assert_eq!(app.mode, AppMode::Installed);
+        assert_eq!(app.packages.len(), 4);
+        assert_eq!(app.filtered_packages.len(), 4);
+        assert_eq!(app.local_filter, "Package");
+        assert_eq!(app.selected, 2);
+        assert_eq!(app.selected_packages, [2usize].into_iter().collect());
+        assert_eq!(app.sort_field, crate::models::SortField::Size);
+        assert_eq!(app.sort_dir, crate::models::SortDir::Desc);
+        assert_eq!(app.source_filter, crate::models::SourceFilter::Winget);
+        assert_eq!(app.pin_filter, crate::models::PinFilter::PinnedOnly);
+        assert_eq!(app.focus, crate::app::FocusZone::DetailPanel);
+        assert_eq!(app.detail_scroll, 7);
+        assert_eq!(app.table_state.offset(), 1);
+        assert!(
+            !app.loading,
+            "restoring a cached view should avoid a reload"
+        );
     }
 
     #[test]

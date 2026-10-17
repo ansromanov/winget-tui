@@ -13,6 +13,7 @@ A terminal user interface for [Windows Package Manager (winget)](https://github.
 
 - **Search & Discover** — Find packages across all winget sources
 - **Installed Packages** — View everything installed on your system
+- **Per-View State** — Cache each tab's list and restore its cursor, scroll, filters, sort, and multi-selection when switching views
 - **Upgrade Management** — See updates at a glance and batch-upgrade multiple packages
 - **Pin Awareness** — Pin or unpin installed packages and filter pinned items without leaving the TUI
 - **Source Filtering** — Filter by source (winget, msstore, or all)
@@ -113,7 +114,7 @@ winget-tui
 | `↓` / `j` | Move down |
 | `PgUp` / `PgDn` | Jump one page |
 | `Home` / `End` | Jump to first / last |
-| `←` / `→` | Cycle views backward / forward |
+| `←` / `→` | Cycle views backward / forward, restoring each tab's state |
 | `Tab` / `Shift+Tab` | Toggle focus between the package list and detail panel |
 | `/` or `s` | Focus search in Search view, or local filter in Installed/Upgrades |
 | `Enter` | Submit search / show details |
