@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
@@ -196,6 +197,22 @@ fn version_key(v: &str) -> Vec<VersionPart> {
         .collect()
 }
 
+fn size_key(size: &str) -> u64 {
+    let Some((amount, unit)) = size.split_once(' ') else {
+        return 0;
+    };
+    let Ok(amount) = amount.parse::<f64>() else {
+        return 0;
+    };
+    let multiplier = match unit {
+        "KiB" => 1024.0,
+        "MiB" => 1024.0 * 1024.0,
+        "GiB" => 1024.0 * 1024.0 * 1024.0,
+        _ => return 0,
+    };
+    (amount * multiplier) as u64
+}
+
 #[cfg(test)]
 fn compare_versions(a: &str, b: &str) -> std::cmp::Ordering {
     version_key(a).cmp(&version_key(b))
@@ -312,6 +329,15 @@ impl App {
                     self.filtered_packages.reverse();
                 }
             }
+            SortField::Size => {
+                if self.sort_dir == SortDir::Asc {
+                    self.filtered_packages
+                        .sort_by_cached_key(|p| (p.size.is_empty(), size_key(&p.size)));
+                } else {
+                    self.filtered_packages
+                        .sort_by_cached_key(|p| (p.size.is_empty(), Reverse(size_key(&p.size))));
+                }
+            }
         }
         // Keep selection in bounds
         if self.selected >= self.filtered_packages.len() {
@@ -370,7 +396,7 @@ impl App {
         self.status_message = msg.into();
     }
 
-    /// Advance through sort states: None → Name → ID → Version → Publisher → None.
+    /// Advance through sort states: None → Name → ID → Version → Publisher → Size → None.
     pub fn cycle_sort(&mut self) {
         use crate::models::{SortDir, SortField};
         let (next_field, next_dir) = match (self.sort_field, self.sort_dir) {
@@ -382,7 +408,9 @@ impl App {
             (SortField::Version, SortDir::Asc) => (SortField::Version, SortDir::Desc),
             (SortField::Version, SortDir::Desc) => (SortField::Publisher, SortDir::Asc),
             (SortField::Publisher, SortDir::Asc) => (SortField::Publisher, SortDir::Desc),
-            (SortField::Publisher, SortDir::Desc) => (SortField::None, SortDir::Asc),
+            (SortField::Publisher, SortDir::Desc) => (SortField::Size, SortDir::Asc),
+            (SortField::Size, SortDir::Asc) => (SortField::Size, SortDir::Desc),
+            (SortField::Size, SortDir::Desc) => (SortField::None, SortDir::Asc),
         };
         self.sort_field = next_field;
         self.sort_dir = next_dir;
@@ -1499,6 +1527,36 @@ mod tests {
     }
 
     #[test]
+    fn apply_filter_sort_by_size_uses_numeric_values_and_keeps_unknowns_last() {
+        let spy = SpyBackend::new();
+        let mut app = make_app(spy as Arc<dyn WingetBackend>);
+        let mut smaller = make_package("Small", "Small.App", "1.0");
+        smaller.size = "950 MiB".to_string();
+        let mut larger = make_package("Large", "Large.App", "1.0");
+        larger.size = "1.2 GiB".to_string();
+        let unknown = make_package("Unknown", "Unknown.App", "1.0");
+        app.packages = vec![larger, unknown, smaller];
+        app.sort_field = crate::models::SortField::Size;
+        app.sort_dir = crate::models::SortDir::Asc;
+        app.apply_filter();
+        let sizes: Vec<&str> = app
+            .filtered_packages
+            .iter()
+            .map(|p| p.size.as_str())
+            .collect();
+        assert_eq!(sizes, ["950 MiB", "1.2 GiB", ""]);
+
+        app.sort_dir = crate::models::SortDir::Desc;
+        app.apply_filter();
+        let sizes: Vec<&str> = app
+            .filtered_packages
+            .iter()
+            .map(|p| p.size.as_str())
+            .collect();
+        assert_eq!(sizes, ["1.2 GiB", "950 MiB", ""]);
+    }
+
+    #[test]
     fn apply_filter_sort_by_version_numeric_multi_digit() {
         let spy = SpyBackend::new();
         let mut app = make_app(spy as Arc<dyn WingetBackend>);
@@ -2206,6 +2264,11 @@ mod tests {
         assert_eq!(app.sort_dir, crate::models::SortDir::Desc);
         app.cycle_sort();
         assert_eq!(app.sort_field, crate::models::SortField::Publisher);
+        assert_eq!(app.sort_dir, crate::models::SortDir::Asc);
+        app.cycle_sort();
+        assert_eq!(app.sort_dir, crate::models::SortDir::Desc);
+        app.cycle_sort();
+        assert_eq!(app.sort_field, crate::models::SortField::Size);
         assert_eq!(app.sort_dir, crate::models::SortDir::Asc);
         app.cycle_sort();
         assert_eq!(app.sort_dir, crate::models::SortDir::Desc);

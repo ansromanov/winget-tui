@@ -594,7 +594,7 @@ fn handle_normal_mode(
             "Opening changelog ",
         ),
 
-        // Sort: cycle through Name, ID, Version, Publisher and None.
+        // Sort: cycle through Name, ID, Version, Publisher, Size and None.
         KeyCode::Char('S') => {
             app.cycle_sort();
         }
@@ -678,6 +678,7 @@ fn click_sort_header(app: &mut App, col: u16) {
         let boundary_version = boundary_id + content_width * 11 / 100;
         let boundary_available = boundary_version + content_width * 11 / 100;
         let boundary_publisher = boundary_available + content_width * 16 / 100;
+        let boundary_size = boundary_publisher + content_width * 10 / 100;
         if offset < boundary_name {
             SortField::Name
         } else if offset < boundary_id {
@@ -688,6 +689,8 @@ fn click_sort_header(app: &mut App, col: u16) {
             return; // Available is not sortable
         } else if offset < boundary_publisher {
             SortField::Publisher
+        } else if offset < boundary_size {
+            SortField::Size
         } else {
             return; // Source is not sortable
         }
@@ -696,6 +699,7 @@ fn click_sort_header(app: &mut App, col: u16) {
         let boundary_id = boundary_name + content_width * 24 / 100;
         let boundary_version = boundary_id + content_width * 12 / 100;
         let boundary_publisher = boundary_version + content_width * 20 / 100;
+        let boundary_size = boundary_publisher + content_width * 12 / 100;
         if offset < boundary_name {
             SortField::Name
         } else if offset < boundary_id {
@@ -704,6 +708,8 @@ fn click_sort_header(app: &mut App, col: u16) {
             SortField::Version
         } else if offset < boundary_publisher {
             SortField::Publisher
+        } else if offset < boundary_size {
+            SortField::Size
         } else {
             return; // Source is not sortable
         }
@@ -2479,6 +2485,14 @@ mod tests {
         let mut app = make_app_with_list_layout();
         click_sort_header(&mut app, 65);
         assert_eq!(app.sort_field, SortField::Publisher);
+        assert_eq!(app.sort_dir, SortDir::Asc);
+    }
+
+    #[test]
+    fn click_sort_header_size_column_sets_size_sort() {
+        let mut app = make_app_with_list_layout();
+        click_sort_header(&mut app, 80);
+        assert_eq!(app.sort_field, SortField::Size);
         assert_eq!(app.sort_dir, SortDir::Asc);
     }
 

@@ -12,6 +12,7 @@ pub enum SortField {
     Id,
     Version,
     Publisher,
+    Size,
 }
 
 impl SortField {
@@ -26,6 +27,7 @@ impl fmt::Display for SortField {
             Self::Id => write!(f, "ID"),
             Self::Version => write!(f, "Version"),
             Self::Publisher => write!(f, "Publisher"),
+            Self::Size => write!(f, "Size"),
         }
     }
 }
@@ -609,6 +611,8 @@ mod tests {
         assert_eq!(SortField::Name.to_string(), "Name");
         assert_eq!(SortField::Id.to_string(), "ID");
         assert_eq!(SortField::Version.to_string(), "Version");
+        assert_eq!(SortField::Publisher.to_string(), "Publisher");
+        assert_eq!(SortField::Size.to_string(), "Size");
     }
 
     #[test]

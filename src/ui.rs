@@ -254,7 +254,7 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
             sort_header("Version", SortField::Version, app.sort_field, dir),
             Cow::Borrowed("Available"),
             sort_header("Publisher", SortField::Publisher, app.sort_field, dir),
-            Cow::Borrowed("Est.Size"),
+            sort_header("Est.Size", SortField::Size, app.sort_field, dir),
             Cow::Borrowed("Source"),
         ]
     } else {
@@ -264,7 +264,7 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
             sort_header("ID", SortField::Id, app.sort_field, dir),
             sort_header("Version", SortField::Version, app.sort_field, dir),
             sort_header("Publisher", SortField::Publisher, app.sort_field, dir),
-            Cow::Borrowed("Est.Size"),
+            sort_header("Est.Size", SortField::Size, app.sort_field, dir),
             Cow::Borrowed("Source"),
         ]
     };
@@ -1073,7 +1073,7 @@ fn draw_help_overlay(f: &mut Frame, app: &mut App, palette: &theme::Theme) {
         ]),
         Line::from(vec![
             Span::styled("  S           ", key),
-            Span::raw("Cycle sort: Name → ID → Version → Publisher → off"),
+            Span::raw("Cycle sort: Name → ID → Version → Publisher → Size → off"),
         ]),
         Line::raw(""),
         Line::from(Span::styled("  Mouse", section)),

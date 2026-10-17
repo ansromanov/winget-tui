@@ -21,7 +21,7 @@ A terminal user interface for [Windows Package Manager (winget)](https://github.
 - **Version-Specific Install** — Install a specific version with `I`
 - **CSV Export** — Save the current visible package list to a CSV file with `e`
 - **Package Details** — View publisher, description, license, homepage, and release notes
-- **Publisher and Size Columns** — Sort by publisher; show best effort installed-size estimates where Windows provides them
+- **Publisher and Size Columns** — Sort by publisher or estimated size; show best effort installed-size estimates where Windows provides them
 - **Graceful Local Package Info** — Non-winget installs still show a useful explanation when rich manifest metadata is unavailable
 - **Scrollable Details Pane** — Read long descriptions without losing your place in the package list
 - **Configurable Themes and Startup Defaults** — Select an accessible color preset and default view in `config.toml`
@@ -132,7 +132,7 @@ winget-tui
 | `X` | Uninstall all selected packages (Installed view) |
 | `o` | Open package homepage in your browser |
 | `c` | Open release notes / changelog in your browser |
-| `S` | Cycle sort (Name → ID → Version → Publisher → off) |
+| `S` | Cycle sort (Name → ID → Version → Publisher → Size → off) |
 | `?` | Toggle help overlay |
 | `q` / `Esc` | Quit / close dialog |
 | `Ctrl+C` | Quit |
@@ -166,7 +166,7 @@ Example:
 ```toml
 default_view = "upgrades"          # installed | search | upgrades
 default_source = "winget"          # all | winget | msstore
-default_sort = "name"              # name | name_desc | id | id_desc | version | version_desc | publisher | publisher_desc | none
+default_sort = "name"              # name | name_desc | id | id_desc | version | version_desc | publisher | publisher_desc | size | size_desc | none
 default_pin_filter = "hide_pinned" # all | pinned | hide_pinned
 theme = "retro"                    # original | retro | nord | terminal
 ```
