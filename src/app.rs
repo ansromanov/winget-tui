@@ -594,6 +594,32 @@ impl App {
                         ))
                     }
                 }
+                Operation::BatchUninstall { ids } => {
+                    let total = ids.len();
+                    let mut failures: Vec<String> = Vec::new();
+                    for (i, id) in ids.iter().enumerate() {
+                        let _ = tx.send(AppMessage::StatusUpdate(format!(
+                            "Uninstalling {}/{}: {}...",
+                            i + 1,
+                            total,
+                            id
+                        )));
+                        if let Err(e) = backend.uninstall(id).await {
+                            failures.push(format!("{}: {}", id, e));
+                        }
+                    }
+                    if failures.is_empty() {
+                        Ok(format!("All {} packages uninstalled successfully", total))
+                    } else {
+                        Err(anyhow::anyhow!(
+                            "{}/{} succeeded, {} failed: {}",
+                            total - failures.len(),
+                            total,
+                            failures.len(),
+                            failures.join("; ")
+                        ))
+                    }
+                }
             };
 
             let op_result = match result {
@@ -753,6 +779,12 @@ impl App {
                             }
                             self.selected_packages.clear();
                         }
+                        Operation::BatchUninstall { ids } => {
+                            for id in ids {
+                                self.detail_cache.remove(id);
+                            }
+                            self.selected_packages.clear();
+                        }
                     }
                     let status = if result.success {
                         let detail = result.message.trim();
@@ -768,7 +800,11 @@ impl App {
                     self.loading = false;
                     // Refresh after successful mutations, or after a batch-upgrade
                     // attempt where some items may still have changed state.
-                    if result.success || matches!(result.operation, Operation::BatchUpgrade { .. })
+                    if result.success
+                        || matches!(
+                            result.operation,
+                            Operation::BatchUpgrade { .. } | Operation::BatchUninstall { .. }
+                        )
                     {
                         self.post_refresh_status = Some(status);
                         self.loading = true;

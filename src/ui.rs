@@ -216,7 +216,14 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
 
     let title = match app.mode {
         AppMode::Search => "Search Results".to_string(),
-        AppMode::Installed => "Installed".to_string(),
+        AppMode::Installed => {
+            let sel = app.selected_packages.len();
+            if sel > 0 {
+                format!("Installed -- {} selected", sel)
+            } else {
+                "Installed".to_string()
+            }
+        }
         AppMode::Upgrades => {
             let sel = app.selected_packages.len();
             if sel > 0 {
@@ -271,7 +278,8 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
         .enumerate()
         .map(|(i, pkg)| {
             let is_selected = i == app.selected;
-            let is_marked = app.mode == AppMode::Upgrades && app.selected_packages.contains(&i);
+            let is_marked = matches!(app.mode, AppMode::Installed | AppMode::Upgrades)
+                && app.selected_packages.contains(&i);
             let style = if is_selected {
                 theme::selected_row(palette)
             } else if is_marked {
@@ -280,7 +288,7 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
                 theme::root(palette)
             };
 
-            let prefix = if app.mode == AppMode::Upgrades {
+            let prefix = if matches!(app.mode, AppMode::Installed | AppMode::Upgrades) {
                 if is_marked && is_selected {
                     "\u{25CF}[x] " // ● selected + marked
                 } else if is_marked {
@@ -1009,15 +1017,19 @@ fn draw_help_overlay(f: &mut Frame, app: &mut App, palette: &theme::Theme) {
         ]),
         Line::from(vec![
             Span::styled("  Space       ", key),
-            Span::raw("Toggle select (Upgrades view)"),
+            Span::raw("Toggle select (Installed / Upgrades)"),
         ]),
         Line::from(vec![
             Span::styled("  a           ", key),
-            Span::raw("Select / deselect all (Upgrades)"),
+            Span::raw("Select / deselect all (Installed / Upgrades)"),
         ]),
         Line::from(vec![
             Span::styled("  U           ", key),
             Span::raw("Batch upgrade selected packages"),
+        ]),
+        Line::from(vec![
+            Span::styled("  X           ", key),
+            Span::raw("Batch uninstall selected packages (Installed view)"),
         ]),
         Line::from(vec![
             Span::styled("  e           ", key),

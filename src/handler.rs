@@ -510,9 +510,51 @@ fn handle_normal_mode(
             }
         }
 
+        // Batch uninstall (Shift+X)
+        KeyCode::Char('X')
+            if app.mode == AppMode::Installed && !app.selected_packages.is_empty() =>
+        {
+            let selected_count = app.selected_packages.len();
+            let ids: Vec<String> = app
+                .selected_packages
+                .iter()
+                .filter_map(|&idx| {
+                    app.filtered_packages
+                        .get(idx)
+                        .filter(|p| !p.is_truncated())
+                        .map(|p| p.id.clone())
+                })
+                .collect();
+            if ids.is_empty() {
+                app.set_status("Cannot uninstall: all selected packages have truncated IDs — use winget directly");
+            } else {
+                let count = ids.len();
+                let skipped = selected_count.saturating_sub(count);
+                let skipped_note = if skipped > 0 {
+                    format!(
+                        " ({} skipped — truncated ID{})",
+                        skipped,
+                        if skipped == 1 { "" } else { "s" }
+                    )
+                } else {
+                    String::new()
+                };
+                app.confirm = Some(ConfirmDialog {
+                    message: format!(
+                        "Uninstall {} selected package{}{}?",
+                        count,
+                        if count == 1 { "" } else { "s" },
+                        skipped_note
+                    ),
+                    operation: Operation::BatchUninstall { ids },
+                });
+            }
+        }
+
         // Toggle selection (Space)
         KeyCode::Char(' ')
-            if app.mode == AppMode::Upgrades && !app.filtered_packages.is_empty() =>
+            if matches!(app.mode, AppMode::Installed | AppMode::Upgrades)
+                && !app.filtered_packages.is_empty() =>
         {
             let idx = app.selected;
             if app.selected_packages.contains(&idx) {
@@ -526,7 +568,8 @@ fn handle_normal_mode(
 
         // Select all / deselect all
         KeyCode::Char('a')
-            if app.mode == AppMode::Upgrades && !app.filtered_packages.is_empty() =>
+            if matches!(app.mode, AppMode::Installed | AppMode::Upgrades)
+                && !app.filtered_packages.is_empty() =>
         {
             if app.selected_packages.len() == app.filtered_packages.len() {
                 app.selected_packages.clear();
@@ -1392,6 +1435,58 @@ mod tests {
         match confirm.operation {
             Operation::BatchUpgrade { ids } => assert_eq!(ids.len(), 2),
             _ => panic!("expected BatchUpgrade operation"),
+        }
+    }
+
+    #[test]
+    fn batch_uninstall_confirm_works_in_installed_view() {
+        let mut app = make_app_with_pkgs(2);
+        app.mode = AppMode::Installed;
+        app.selected_packages = [0usize, 1usize].into_iter().collect();
+
+        let _ = handle_normal_mode(&mut app, KeyCode::Char('X'), KeyModifiers::NONE);
+
+        let confirm = app.confirm.expect("confirm dialog should be set");
+        assert_eq!(confirm.message, "Uninstall 2 selected packages?");
+        match confirm.operation {
+            Operation::BatchUninstall { ids } => assert_eq!(ids.len(), 2),
+            _ => panic!("expected BatchUninstall operation"),
+        }
+    }
+
+    #[test]
+    fn batch_uninstall_skips_truncated_ids() {
+        let mut app = make_app();
+        app.mode = AppMode::Installed;
+        app.packages = vec![
+            Package {
+                id: "Good.App".to_string(),
+                name: "Good".to_string(),
+                version: "1.0".to_string(),
+                source: "winget".to_string(),
+                available_version: String::new(),
+                pin_state: PinState::None,
+            },
+            Package {
+                id: "Bad.App...".to_string(),
+                name: "Bad".to_string(),
+                version: "1.0".to_string(),
+                source: "winget".to_string(),
+                available_version: String::new(),
+                pin_state: PinState::None,
+            },
+        ];
+        app.filtered_packages = app.packages.clone();
+        app.selected_packages = [0usize, 1usize].into_iter().collect();
+
+        let _ = handle_normal_mode(&mut app, KeyCode::Char('X'), KeyModifiers::NONE);
+
+        let confirm = app.confirm.expect("confirm dialog should be set");
+        assert!(confirm.message.contains("Uninstall 1 selected package"));
+        assert!(confirm.message.contains("1 skipped"));
+        match confirm.operation {
+            Operation::BatchUninstall { ids } => assert_eq!(ids, vec!["Good.App".to_string()]),
+            _ => panic!("expected BatchUninstall operation"),
         }
     }
 

@@ -253,6 +253,7 @@ pub enum Operation {
     Pin { id: String },
     Unpin { id: String },
     BatchUpgrade { ids: Vec<String> },
+    BatchUninstall { ids: Vec<String> },
 }
 
 impl fmt::Display for Operation {
@@ -270,6 +271,7 @@ impl fmt::Display for Operation {
             Self::Pin { id } => write!(f, "Pinning {id}"),
             Self::Unpin { id } => write!(f, "Unpinning {id}"),
             Self::BatchUpgrade { ids } => write!(f, "Batch upgrading {} packages", ids.len()),
+            Self::BatchUninstall { ids } => write!(f, "Batch uninstalling {} packages", ids.len()),
         }
     }
 }

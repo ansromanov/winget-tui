@@ -125,9 +125,10 @@ winget-tui
 | `x` | Uninstall selected package |
 | `p` | Pin / unpin the selected installed package (blocks upgrades) |
 | `P` | Cycle pin filter (All → Pinned only → Hide pinned) |
-| `Space` | Toggle selection for batch upgrade (Upgrades view) |
-| `a` | Select / deselect all packages (Upgrades view) |
+| `Space` | Toggle selection (Installed / Upgrades views) |
+| `a` | Select / deselect all packages (Installed / Upgrades views) |
 | `U` | Upgrade all selected packages (Upgrades view) |
+| `X` | Uninstall all selected packages (Installed view) |
 | `o` | Open package homepage in your browser |
 | `c` | Open release notes / changelog in your browser |
 | `S` | Cycle sort (Name↑ → Name↓ → ID↑ → ID↓ → Version↑ → Version↓ → off) |
