@@ -622,7 +622,11 @@ fn draw_detail_panel(f: &mut Frame, app: &mut App, area: Rect) {
                 lines.push(Line::from(vec![
                     Span::raw("  "),
                     Span::styled(" x ", theme::action_danger(palette)),
-                    Span::raw(" Uninstall"),
+                    Span::raw(if app.selected_packages.is_empty() {
+                        " Uninstall"
+                    } else {
+                        " Uninstall selected packages"
+                    }),
                 ]));
                 lines.push(Line::raw(""));
                 lines.push(Line::from(vec![

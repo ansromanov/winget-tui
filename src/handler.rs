@@ -432,6 +432,11 @@ fn handle_normal_mode(
         }
 
         // Uninstall
+        KeyCode::Char('x')
+            if app.mode == AppMode::Installed && !app.selected_packages.is_empty() =>
+        {
+            confirm_batch_uninstall(app);
+        }
         KeyCode::Char('x') => {
             if let Some(pkg) = app.selected_package() {
                 if pkg.is_truncated() {
@@ -510,45 +515,11 @@ fn handle_normal_mode(
             }
         }
 
-        // Batch uninstall (Shift+X)
+        // Batch uninstall shortcut (X; lowercase x also uses a selection)
         KeyCode::Char('X')
             if app.mode == AppMode::Installed && !app.selected_packages.is_empty() =>
         {
-            let selected_count = app.selected_packages.len();
-            let ids: Vec<String> = app
-                .selected_packages
-                .iter()
-                .filter_map(|&idx| {
-                    app.filtered_packages
-                        .get(idx)
-                        .filter(|p| !p.is_truncated())
-                        .map(|p| p.id.clone())
-                })
-                .collect();
-            if ids.is_empty() {
-                app.set_status("Cannot uninstall: all selected packages have truncated IDs — use winget directly");
-            } else {
-                let count = ids.len();
-                let skipped = selected_count.saturating_sub(count);
-                let skipped_note = if skipped > 0 {
-                    format!(
-                        " ({} skipped — truncated ID{})",
-                        skipped,
-                        if skipped == 1 { "" } else { "s" }
-                    )
-                } else {
-                    String::new()
-                };
-                app.confirm = Some(ConfirmDialog {
-                    message: format!(
-                        "Uninstall {} selected package{}{}?",
-                        count,
-                        if count == 1 { "" } else { "s" },
-                        skipped_note
-                    ),
-                    operation: Operation::BatchUninstall { ids },
-                });
-            }
+            confirm_batch_uninstall(app);
         }
 
         // Toggle selection (Space)
@@ -602,6 +573,46 @@ fn handle_normal_mode(
         _ => {}
     }
     Ok(false)
+}
+
+fn confirm_batch_uninstall(app: &mut App) {
+    let selected_count = app.selected_packages.len();
+    let ids: Vec<String> = app
+        .selected_packages
+        .iter()
+        .filter_map(|&idx| {
+            app.filtered_packages
+                .get(idx)
+                .filter(|p| !p.is_truncated())
+                .map(|p| p.id.clone())
+        })
+        .collect();
+    if ids.is_empty() {
+        app.set_status(
+            "Cannot uninstall: all selected packages have truncated IDs — use winget directly",
+        );
+    } else {
+        let count = ids.len();
+        let skipped = selected_count.saturating_sub(count);
+        let skipped_note = if skipped > 0 {
+            format!(
+                " ({} skipped — truncated ID{})",
+                skipped,
+                if skipped == 1 { "" } else { "s" }
+            )
+        } else {
+            String::new()
+        };
+        app.confirm = Some(ConfirmDialog {
+            message: format!(
+                "Uninstall {} selected package{}{}?",
+                count,
+                if count == 1 { "" } else { "s" },
+                skipped_note
+            ),
+            operation: Operation::BatchUninstall { ids },
+        });
+    }
 }
 
 /// Switch the active view/mode, resetting selection and triggering a refresh
@@ -1467,7 +1478,7 @@ mod tests {
         app.mode = AppMode::Installed;
         app.selected_packages = [0usize, 1usize].into_iter().collect();
 
-        let _ = handle_normal_mode(&mut app, KeyCode::Char('X'), KeyModifiers::NONE);
+        let _ = handle_normal_mode(&mut app, KeyCode::Char('x'), KeyModifiers::NONE);
 
         let confirm = app.confirm.expect("confirm dialog should be set");
         assert_eq!(confirm.message, "Uninstall 2 selected packages?");

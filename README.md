@@ -123,13 +123,13 @@ winget-tui
 | `i` | Install selected package |
 | `I` | Install a specific version of the selected package |
 | `u` | Upgrade selected package |
-| `x` | Uninstall selected package |
+| `x` | Uninstall current package, or selected packages in the Installed view |
 | `p` | Pin / unpin the selected installed package (blocks upgrades) |
 | `P` | Cycle pin filter (All → Pinned only → Hide pinned) |
 | `Space` | Toggle selection (Installed / Upgrades views) |
 | `a` | Select / deselect all packages (Installed / Upgrades views) |
 | `U` | Upgrade all selected packages (Upgrades view) |
-| `X` | Uninstall all selected packages (Installed view) |
+| `X` | Uninstall all selected packages (Installed view; `x` also works) |
 | `o` | Open package homepage in your browser |
 | `c` | Open release notes / changelog in your browser |
 | `S` | Cycle sort (Name → ID → Version → Publisher → Size → off) |
