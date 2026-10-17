@@ -594,7 +594,7 @@ fn handle_normal_mode(
             "Opening changelog ",
         ),
 
-        // Sort: cycle through Name↑ → Name↓ → ID↑ → ID↓ → Version↑ → Version↓ → None
+        // Sort: cycle through Name, ID, Version, Publisher and None.
         KeyCode::Char('S') => {
             app.cycle_sort();
         }
@@ -670,33 +670,42 @@ fn click_sort_header(app: &mut App, col: u16) {
     let offset = col - x0;
 
     // Determine the sort field based on column percentages defined in ui.rs.
-    // Non-Upgrades: Name 25%, ID 35%, Version 20%, Source 20% (unsortable)
-    // Upgrades:     Name 25%, ID 30%, Version 15%, Available 15% (unsortable), Source 15% (unsortable)
+    // Installed: Name 19%, ID 24%, Version 12%, Publisher 20%, size 12%, Source 13%.
+    // Upgrades: Name 18%, ID 22%, Version 11%, Available 11%, Publisher 16%, size 10%, Source 12%.
     let field = if app.mode == AppMode::Upgrades {
-        let boundary_name = content_width * 25 / 100;
-        let boundary_id = boundary_name + content_width * 30 / 100;
-        let boundary_version = boundary_id + content_width * 15 / 100;
+        let boundary_name = content_width * 18 / 100;
+        let boundary_id = boundary_name + content_width * 22 / 100;
+        let boundary_version = boundary_id + content_width * 11 / 100;
+        let boundary_available = boundary_version + content_width * 11 / 100;
+        let boundary_publisher = boundary_available + content_width * 16 / 100;
         if offset < boundary_name {
             SortField::Name
         } else if offset < boundary_id {
             SortField::Id
         } else if offset < boundary_version {
             SortField::Version
+        } else if offset < boundary_available {
+            return; // Available is not sortable
+        } else if offset < boundary_publisher {
+            SortField::Publisher
         } else {
-            return; // Available or Source — not sortable
+            return; // Source is not sortable
         }
     } else {
-        let boundary_name = content_width * 25 / 100;
-        let boundary_id = boundary_name + content_width * 35 / 100;
-        let boundary_version = boundary_id + content_width * 20 / 100;
+        let boundary_name = content_width * 19 / 100;
+        let boundary_id = boundary_name + content_width * 24 / 100;
+        let boundary_version = boundary_id + content_width * 12 / 100;
+        let boundary_publisher = boundary_version + content_width * 20 / 100;
         if offset < boundary_name {
             SortField::Name
         } else if offset < boundary_id {
             SortField::Id
         } else if offset < boundary_version {
             SortField::Version
+        } else if offset < boundary_publisher {
+            SortField::Publisher
         } else {
-            return; // Source — not sortable
+            return; // Source is not sortable
         }
     };
 
@@ -996,6 +1005,8 @@ mod tests {
             id: id.to_string(),
             name: "Test Package".to_string(),
             version: version.to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: available.to_string(),
             pin_state: PinState::None,
@@ -1012,6 +1023,8 @@ mod tests {
                 id: format!("pkg{i}"),
                 name: format!("Package {i}"),
                 version: "1.0.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: String::new(),
                 pin_state: PinState::None,
@@ -1225,6 +1238,8 @@ mod tests {
                 id: "Google.Chrome".to_string(),
                 name: "Google Chrome".to_string(),
                 version: "1.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: String::new(),
                 pin_state: PinState::None,
@@ -1233,6 +1248,8 @@ mod tests {
                 id: "Mozilla.Firefox".to_string(),
                 name: "Mozilla Firefox".to_string(),
                 version: "1.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: String::new(),
                 pin_state: PinState::None,
@@ -1463,6 +1480,8 @@ mod tests {
                 id: "Good.App".to_string(),
                 name: "Good".to_string(),
                 version: "1.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: String::new(),
                 pin_state: PinState::None,
@@ -1471,6 +1490,8 @@ mod tests {
                 id: "Bad.App...".to_string(),
                 name: "Bad".to_string(),
                 version: "1.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: String::new(),
                 pin_state: PinState::None,
@@ -1517,6 +1538,8 @@ mod tests {
                 id: "Good.App".to_string(),
                 name: "Good".to_string(),
                 version: "1.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: "1.1".to_string(),
                 pin_state: PinState::None,
@@ -1525,6 +1548,8 @@ mod tests {
                 id: "Bad.App...".to_string(),
                 name: "Bad".to_string(),
                 version: "1.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: "1.1".to_string(),
                 pin_state: PinState::None,
@@ -1552,6 +1577,8 @@ mod tests {
             id: "Only.Bad...".to_string(),
             name: "Bad".to_string(),
             version: "1.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: "1.1".to_string(),
             pin_state: PinState::None,
@@ -2441,9 +2468,17 @@ mod tests {
     #[test]
     fn click_sort_header_version_column_sets_version_sort() {
         let mut app = make_app_with_list_layout();
-        // Version starts at ~58 (25+34=59 rounded); click at col=65
-        click_sort_header(&mut app, 65);
+        // Version occupies 43–55% after the added publisher column.
+        click_sort_header(&mut app, 50);
         assert_eq!(app.sort_field, SortField::Version);
+        assert_eq!(app.sort_dir, SortDir::Asc);
+    }
+
+    #[test]
+    fn click_sort_header_publisher_column_sets_publisher_sort() {
+        let mut app = make_app_with_list_layout();
+        click_sort_header(&mut app, 65);
+        assert_eq!(app.sort_field, SortField::Publisher);
         assert_eq!(app.sort_dir, SortDir::Asc);
     }
 

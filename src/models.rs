@@ -11,6 +11,7 @@ pub enum SortField {
     Name,
     Id,
     Version,
+    Publisher,
 }
 
 impl SortField {
@@ -24,6 +25,7 @@ impl fmt::Display for SortField {
             Self::Name => write!(f, "Name"),
             Self::Id => write!(f, "ID"),
             Self::Version => write!(f, "Version"),
+            Self::Publisher => write!(f, "Publisher"),
         }
     }
 }
@@ -158,6 +160,10 @@ pub struct Package {
     pub name: String,
     #[serde(alias = "PackageVersion", alias = "Version", default)]
     pub version: String,
+    #[serde(alias = "Publisher", default)]
+    pub publisher: String,
+    #[serde(default)]
+    pub size: String,
     #[serde(alias = "Source", default)]
     pub source: String,
     /// Only present in upgrade listings
@@ -293,6 +299,8 @@ mod tests {
             id: id.to_string(),
             name: "Test".to_string(),
             version: "1.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: String::new(),
             pin_state: PinState::None,

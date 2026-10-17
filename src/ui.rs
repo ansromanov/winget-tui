@@ -253,6 +253,8 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
             sort_header("ID", SortField::Id, app.sort_field, dir),
             sort_header("Version", SortField::Version, app.sort_field, dir),
             Cow::Borrowed("Available"),
+            sort_header("Publisher", SortField::Publisher, app.sort_field, dir),
+            Cow::Borrowed("Est.Size"),
             Cow::Borrowed("Source"),
         ]
     } else {
@@ -261,6 +263,8 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
             sort_header("Name", SortField::Name, app.sort_field, dir),
             sort_header("ID", SortField::Id, app.sort_field, dir),
             sort_header("Version", SortField::Version, app.sort_field, dir),
+            sort_header("Publisher", SortField::Publisher, app.sort_field, dir),
+            Cow::Borrowed("Est.Size"),
             Cow::Borrowed("Source"),
         ]
     };
@@ -320,6 +324,12 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
                     Cell::from(truncate(&pkg.id, 25)),
                     Cell::from(pkg.version.as_str()),
                     Cell::from(Span::styled(&pkg.available_version, available_style)),
+                    Cell::from(truncate(&pkg.publisher, 22)),
+                    Cell::from(if pkg.size.is_empty() {
+                        "—"
+                    } else {
+                        &pkg.size
+                    }),
                     Cell::from(pkg.source.as_str()),
                 ]
             } else {
@@ -332,6 +342,12 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
                     )),
                     Cell::from(truncate(&pkg.id, 28)),
                     Cell::from(pkg.version.as_str()),
+                    Cell::from(truncate(&pkg.publisher, 26)),
+                    Cell::from(if pkg.size.is_empty() {
+                        "—"
+                    } else {
+                        &pkg.size
+                    }),
                     Cell::from(pkg.source.as_str()),
                 ]
             };
@@ -342,18 +358,22 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
 
     let widths = if app.mode == AppMode::Upgrades {
         vec![
-            Constraint::Percentage(25),
-            Constraint::Percentage(30),
-            Constraint::Percentage(15),
-            Constraint::Percentage(15),
-            Constraint::Percentage(15),
+            Constraint::Percentage(18),
+            Constraint::Percentage(22),
+            Constraint::Percentage(11),
+            Constraint::Percentage(11),
+            Constraint::Percentage(16),
+            Constraint::Percentage(10),
+            Constraint::Percentage(12),
         ]
     } else {
         vec![
-            Constraint::Percentage(25),
-            Constraint::Percentage(35),
+            Constraint::Percentage(19),
+            Constraint::Percentage(24),
+            Constraint::Percentage(12),
             Constraint::Percentage(20),
-            Constraint::Percentage(20),
+            Constraint::Percentage(12),
+            Constraint::Percentage(13),
         ]
     };
 
@@ -1053,7 +1073,7 @@ fn draw_help_overlay(f: &mut Frame, app: &mut App, palette: &theme::Theme) {
         ]),
         Line::from(vec![
             Span::styled("  S           ", key),
-            Span::raw("Cycle sort: Name↑ → Name↓ → ID↑ → ID↓ → Version↑ → Version↓ → off"),
+            Span::raw("Cycle sort: Name → ID → Version → Publisher → off"),
         ]),
         Line::raw(""),
         Line::from(Span::styled("  Mouse", section)),
@@ -1425,6 +1445,8 @@ mod tests {
                     name: "Example Package".to_string(),
                     id: "Example.Package".to_string(),
                     version: "1.0".to_string(),
+                    publisher: String::new(),
+                    size: String::new(),
                     available_version: "2.0".to_string(),
                     source: "winget".to_string(),
                     pin_state: Default::default(),

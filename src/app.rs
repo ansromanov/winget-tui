@@ -305,6 +305,13 @@ impl App {
                     self.filtered_packages.reverse();
                 }
             }
+            SortField::Publisher => {
+                self.filtered_packages
+                    .sort_by_cached_key(|p| p.publisher.to_lowercase());
+                if self.sort_dir == SortDir::Desc {
+                    self.filtered_packages.reverse();
+                }
+            }
         }
         // Keep selection in bounds
         if self.selected >= self.filtered_packages.len() {
@@ -363,7 +370,7 @@ impl App {
         self.status_message = msg.into();
     }
 
-    /// Advance through sort states: None → Name↑ → Name↓ → ID↑ → ID↓ → Version↑ → Version↓ → None → …
+    /// Advance through sort states: None → Name → ID → Version → Publisher → None.
     pub fn cycle_sort(&mut self) {
         use crate::models::{SortDir, SortField};
         let (next_field, next_dir) = match (self.sort_field, self.sort_dir) {
@@ -373,7 +380,9 @@ impl App {
             (SortField::Id, SortDir::Asc) => (SortField::Id, SortDir::Desc),
             (SortField::Id, SortDir::Desc) => (SortField::Version, SortDir::Asc),
             (SortField::Version, SortDir::Asc) => (SortField::Version, SortDir::Desc),
-            (SortField::Version, SortDir::Desc) => (SortField::None, SortDir::Asc),
+            (SortField::Version, SortDir::Desc) => (SortField::Publisher, SortDir::Asc),
+            (SortField::Publisher, SortDir::Asc) => (SortField::Publisher, SortDir::Desc),
+            (SortField::Publisher, SortDir::Desc) => (SortField::None, SortDir::Asc),
         };
         self.sort_field = next_field;
         self.sort_dir = next_dir;
@@ -667,20 +676,22 @@ impl App {
         include_available: bool,
     ) -> std::io::Result<()> {
         let header = if include_available {
-            "Name,Id,Version,Source,AvailableVersion"
+            "Name,Id,Version,Source,Publisher,EstimatedSize,AvailableVersion"
         } else {
-            "Name,Id,Version,Source"
+            "Name,Id,Version,Source,Publisher,EstimatedSize"
         };
         writeln!(writer, "{header}")?;
 
         for pkg in &self.filtered_packages {
             write!(
                 writer,
-                "{},{},{},{}",
+                "{},{},{},{},{},{}",
                 csv_escape(&pkg.name),
                 csv_escape(&pkg.id),
                 csv_escape(&pkg.version),
                 csv_escape(&pkg.source),
+                csv_escape(&pkg.publisher),
+                csv_escape(&pkg.size),
             )?;
             if include_available {
                 write!(writer, ",{}", csv_escape(&pkg.available_version))?;
@@ -912,6 +923,8 @@ mod tests {
             id: id.to_string(),
             name: id.to_string(),
             version: "1.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -1082,6 +1095,8 @@ mod tests {
                 id: format!("Pkg.{i}"),
                 name: format!("Package {i}"),
                 version: "1.0".to_string(),
+                publisher: String::new(),
+                size: String::new(),
                 source: "winget".to_string(),
                 available_version: String::new(),
                 pin_state: PinState::None,
@@ -1260,6 +1275,8 @@ mod tests {
             name: name.to_string(),
             id: id.to_string(),
             version: version.to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -1348,6 +1365,8 @@ mod tests {
             name: "Pkg One".to_string(),
             id: "Pkg.One".to_string(),
             version: "1.0.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: String::new(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -1461,6 +1480,22 @@ mod tests {
             .map(|p| p.version.as_str())
             .collect();
         assert_eq!(versions, ["1.0", "2.0", "3.0"]);
+    }
+
+    #[test]
+    fn apply_filter_sort_by_publisher_asc() {
+        let spy = SpyBackend::new();
+        let mut app = make_app(spy as Arc<dyn WingetBackend>);
+        let mut first = make_package("Z Publisher", "Z.App", "1.0");
+        first.publisher = "Zeta Inc".to_string();
+        let mut second = make_package("A Publisher", "A.App", "1.0");
+        second.publisher = "Acme Corp".to_string();
+        app.packages = vec![first, second];
+        app.sort_field = crate::models::SortField::Publisher;
+        app.sort_dir = crate::models::SortDir::Asc;
+        app.apply_filter();
+        assert_eq!(app.filtered_packages[0].publisher, "Acme Corp");
+        assert_eq!(app.filtered_packages[1].publisher, "Zeta Inc");
     }
 
     #[test]
@@ -1946,7 +1981,7 @@ mod tests {
         app.write_csv(&mut buf, false).unwrap();
 
         let content = String::from_utf8(buf).unwrap();
-        assert!(content.starts_with("Name,Id,Version,Source\n"));
+        assert!(content.starts_with("Name,Id,Version,Source,Publisher,EstimatedSize\n"));
     }
 
     #[test]
@@ -1960,7 +1995,8 @@ mod tests {
         app.write_csv(&mut buf, true).unwrap();
 
         let content = String::from_utf8(buf).unwrap();
-        assert!(content.starts_with("Name,Id,Version,Source,AvailableVersion\n"));
+        assert!(content
+            .starts_with("Name,Id,Version,Source,Publisher,EstimatedSize,AvailableVersion\n"));
     }
 
     #[test]
@@ -1971,6 +2007,8 @@ mod tests {
             name: "App, \"Pro\"".to_string(),
             id: "App.Pro".to_string(),
             version: "1.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -2079,6 +2117,8 @@ mod tests {
             id: "Microsoft.PowerToys".to_string(),
             name: "PowerToys".to_string(),
             version: "0.96.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: "0.98.1".to_string(),
             pin_state: PinState::None,
@@ -2165,6 +2205,11 @@ mod tests {
         app.cycle_sort();
         assert_eq!(app.sort_dir, crate::models::SortDir::Desc);
         app.cycle_sort();
+        assert_eq!(app.sort_field, crate::models::SortField::Publisher);
+        assert_eq!(app.sort_dir, crate::models::SortDir::Asc);
+        app.cycle_sort();
+        assert_eq!(app.sort_dir, crate::models::SortDir::Desc);
+        app.cycle_sort();
         assert_eq!(app.sort_field, crate::models::SortField::None);
     }
 
@@ -2238,6 +2283,8 @@ mod tests {
             id: arp_id.to_string(),
             name: "Git".to_string(),
             version: "2.43.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: String::new(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -2274,6 +2321,8 @@ mod tests {
             id: msix_id.to_string(),
             name: "Bluesky".to_string(),
             version: "1.0.0.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: String::new(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -2307,6 +2356,8 @@ mod tests {
             id: truncated_id.to_string(),
             name: "Sysinternals Suite".to_string(),
             version: "2024.01.01".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: "winget".to_string(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -2348,6 +2399,8 @@ mod tests {
             id: id.to_string(),
             name: "Unlisted App".to_string(),
             version: "3.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: String::new(),
             available_version: String::new(),
             pin_state: PinState::None,
@@ -2376,6 +2429,8 @@ mod tests {
             id: arp_id.to_string(),
             name: "Some App".to_string(),
             version: "1.0".to_string(),
+            publisher: String::new(),
+            size: String::new(),
             source: String::new(),
             available_version: String::new(),
             pin_state: PinState::None,
