@@ -708,11 +708,11 @@ impl CliBackend {
         Some(Package {
             name: sanitize_text(&pcols.name.map(field).unwrap_or_default()),
             id: sanitize_text(&id),
-            version: sanitize_text(&pcols.version.map(&field).unwrap_or_default()),
+            version: sanitize_text(&pcols.version.map(field).unwrap_or_default()),
             publisher: String::new(),
             size: String::new(),
-            source: sanitize_text(&pcols.source.map(&field).unwrap_or_default()),
-            available_version: sanitize_text(&pcols.available.map(&field).unwrap_or_default()),
+            source: sanitize_text(&pcols.source.map(field).unwrap_or_default()),
+            available_version: sanitize_text(&pcols.available.map(field).unwrap_or_default()),
             install_scope: InstallScope::Unknown,
             pin_state: PinState::None,
         })
