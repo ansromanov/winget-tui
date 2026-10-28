@@ -759,7 +759,15 @@ fn click_sort_header(app: &mut App, col: u16) {
     let offset = col - x0;
 
     let columns: &[Option<SortField>] = match app.mode {
-        AppMode::Search | AppMode::Installed => &[
+        AppMode::Search => &[
+            Some(SortField::Name),
+            Some(SortField::Id),
+            Some(SortField::Version),
+            None,
+            None,
+            None,
+        ],
+        AppMode::Installed => &[
             Some(SortField::Name),
             Some(SortField::Id),
             Some(SortField::Version),
@@ -2691,6 +2699,17 @@ mod tests {
         click_sort_header(&mut app, 68);
         assert_eq!(app.sort_field, SortField::Size);
         assert_eq!(app.sort_dir, SortDir::Asc);
+    }
+
+    #[test]
+    fn search_publisher_and_size_headers_are_not_sortable() {
+        let mut app = make_app_with_list_layout();
+        app.mode = AppMode::Search;
+
+        click_sort_header(&mut app, 55);
+        click_sort_header(&mut app, 74);
+
+        assert_eq!(app.sort_field, SortField::None);
     }
 
     #[test]

@@ -275,8 +275,8 @@ fn draw_package_list(f: &mut Frame, app: &mut App, area: Rect) {
             sort_header("Name", SortField::Name, app.sort_field, dir),
             sort_header("ID", SortField::Id, app.sort_field, dir),
             sort_header("Version", SortField::Version, app.sort_field, dir),
-            sort_header("Publisher", SortField::Publisher, app.sort_field, dir),
-            sort_header("Est.Size", SortField::Size, app.sort_field, dir),
+            Cow::Borrowed("Publisher"),
+            Cow::Borrowed("Est.Size"),
             Cow::Borrowed("Source"),
         ]
     };

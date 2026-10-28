@@ -303,6 +303,13 @@ impl App {
     }
 
     pub fn apply_filter(&mut self) {
+        if self.mode == AppMode::Search
+            && matches!(self.sort_field, SortField::Publisher | SortField::Size)
+        {
+            self.sort_field = SortField::None;
+            self.sort_dir = SortDir::Asc;
+        }
+
         // When a source filter is active, winget already filters server-side
         // (and omits the Source column), so accept all returned packages.
         // Backfill the source field when winget omitted it (single-source query).
@@ -1835,6 +1842,20 @@ mod tests {
         app.apply_filter();
         assert_eq!(app.filtered_packages[0].publisher, "Acme Corp");
         assert_eq!(app.filtered_packages[1].publisher, "Zeta Inc");
+    }
+
+    #[test]
+    fn search_view_does_not_keep_unavailable_publisher_or_size_sort() {
+        let spy = SpyBackend::new();
+        let mut app = make_app(spy as Arc<dyn WingetBackend>);
+        app.mode = AppMode::Search;
+        app.sort_field = crate::models::SortField::Publisher;
+        app.sort_dir = crate::models::SortDir::Desc;
+
+        app.apply_filter();
+
+        assert_eq!(app.sort_field, crate::models::SortField::None);
+        assert_eq!(app.sort_dir, crate::models::SortDir::Asc);
     }
 
     #[test]

@@ -20,11 +20,11 @@ A terminal user interface for [Windows Package Manager (winget)](https://github.
 - **Pin Awareness** — Pin or unpin installed packages and filter pinned items without leaving the TUI
 - **Source Filtering** — Filter by source (winget, msstore, or all)
 - **Real-Time Local Filter** — Narrow Installed and Upgrades lists instantly with `/` or `s`
-- **Sortable Columns** — Sort by Name, ID, Version, Publisher, or estimated size (ascending or descending) with `S`
+- **Sortable Columns** — Sort by Name, ID, or Version in Search; Installed and Upgrades also support Publisher and estimated size
 - **Version-Specific Install** — Install a specific version with `I`
 - **CSV Export** — Save the current visible package list to a CSV file with `e`
 - **Package Details** — View publisher, description, license, homepage, and release notes
-- **Publisher and Size Columns** — Sort by publisher or estimated size; show best effort installed-size estimates where Windows provides them
+- **Publisher and Size Columns** — Sort by publisher or estimated size in Installed and Upgrades; show best effort installed-size estimates where Windows provides them
 - **Graceful Local Package Info** — Non-winget installs still show a useful explanation when rich manifest metadata is unavailable
 - **Scrollable Details Pane** — Read long descriptions without losing your place in the package list
 - **Configurable Themes and Startup Defaults** — Select an accessible color preset and default view in `config.toml`
@@ -143,7 +143,7 @@ winget-tui
 | `X` | Uninstall all selected packages (Installed view; `x` also works) |
 | `o` | Open package homepage in your browser |
 | `c` | Open release notes / changelog in your browser |
-| `S` | Cycle sort (Name → ID → Version → Publisher → Size → off) |
+| `S` | Cycle available sorts (Search: Name → ID → Version; Installed / Upgrades also include Publisher and Size) |
 | `?` | Toggle help overlay |
 | `q` / `Esc` | Quit / close dialog |
 | `Ctrl+C` | Quit |
