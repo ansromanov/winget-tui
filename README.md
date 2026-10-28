@@ -13,12 +13,14 @@ A terminal user interface for [Windows Package Manager (winget)](https://github.
 
 - **Search & Discover** — Find packages across all winget sources
 - **Installed Packages** — View everything installed on your system
+- **Batch Uninstall** — Select multiple installed packages and uninstall them together
 - **Per-View State** — Cache each tab's list and restore its cursor, scroll, filters, sort, and multi-selection when switching views
+- **Install Scope** — See User/Machine scope in Installed and Upgrades; upgrades retain a uniquely detected scope
 - **Upgrade Management** — See updates at a glance and batch-upgrade multiple packages
 - **Pin Awareness** — Pin or unpin installed packages and filter pinned items without leaving the TUI
 - **Source Filtering** — Filter by source (winget, msstore, or all)
 - **Real-Time Local Filter** — Narrow Installed and Upgrades lists instantly with `/` or `s`
-- **Sortable Columns** — Sort by Name, ID, or Version (ascending or descending) with `S`
+- **Sortable Columns** — Sort by Name, ID, Version, Publisher, or estimated size (ascending or descending) with `S`
 - **Version-Specific Install** — Install a specific version with `I`
 - **CSV Export** — Save the current visible package list to a CSV file with `e`
 - **Package Details** — View publisher, description, license, homepage, and release notes
@@ -29,6 +31,14 @@ A terminal user interface for [Windows Package Manager (winget)](https://github.
 - **Keyboard-Driven** — Vim-style navigation, no mouse needed
 - **Non-Blocking** — Install/uninstall/upgrade run in the background
 - **Single Binary** — No runtime dependencies beyond winget itself
+
+Scope is determined from `winget list --scope user` and `--scope machine`. A
+package found in both scopes is shown as **Both**; unmatched or truncated IDs
+are shown as **Unknown**. Neither case forces a scope when upgrading, so the app
+does not guess. Uninstall uses an exact package ID and its source when known;
+**Both** is handled as separate machine and user attempts, while **Unknown**
+does not force a scope. Search results describe available packages, not installed
+scope.
 
 ## Prerequisites
 
