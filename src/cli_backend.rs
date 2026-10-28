@@ -12,6 +12,7 @@ use crate::models::{InstallScope, Package, PackageDetail, PackagePin, PinState, 
 
 pub struct CliBackend;
 
+#[cfg(windows)]
 fn format_size(bytes: u64) -> String {
     const MIB: u64 = 1024 * 1024;
     const GIB: u64 = 1024 * MIB;

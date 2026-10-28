@@ -1506,8 +1506,6 @@ mod tests {
                     version: "1.0".to_string(),
                     publisher: String::new(),
                     size: String::new(),
-                    publisher: String::new(),
-                    size: String::new(),
                     available_version: "2.0".to_string(),
                     source: "winget".to_string(),
                     install_scope: crate::models::InstallScope::Machine,
