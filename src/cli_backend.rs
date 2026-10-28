@@ -230,7 +230,11 @@ impl CliBackend {
         }
     }
 
-    fn uninstall_args(id: &str, source: Option<&str>, scope: InstallScope) -> Vec<&str> {
+    fn uninstall_args<'a>(
+        id: &'a str,
+        source: Option<&'a str>,
+        scope: InstallScope,
+    ) -> Vec<&'a str> {
         let mut args = vec![
             "uninstall",
             "--id",
