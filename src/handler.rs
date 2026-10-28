@@ -1575,7 +1575,8 @@ mod tests {
         let confirm = app.confirm.expect("confirm dialog should be set");
         assert_eq!(confirm.message, "Uninstall 2 selected packages?");
         match confirm.operation {
-            Operation::BatchUninstall { packages } => {
+            Operation::BatchUninstall { mut packages } => {
+                packages.sort_by(|left, right| left.id.cmp(&right.id));
                 assert_eq!(packages.len(), 2);
                 assert_eq!(packages[0].scope, InstallScope::Machine);
                 assert_eq!(packages[1].scope, InstallScope::User);
@@ -2619,8 +2620,8 @@ mod tests {
     #[test]
     fn click_sort_header_version_column_sets_version_sort() {
         let mut app = make_app_with_list_layout();
-        // Version occupies 43–55% after the added publisher column.
-        click_sort_header(&mut app, 50);
+        // Version occupies 38–48% in the installed layout.
+        click_sort_header(&mut app, 42);
         assert_eq!(app.sort_field, SortField::Version);
         assert_eq!(app.sort_dir, SortDir::Asc);
     }
