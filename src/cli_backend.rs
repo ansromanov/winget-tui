@@ -1382,8 +1382,10 @@ Google Chrome                  Google.Chrome               131.0.6  winget
             CliBackend::uninstall_scopes(InstallScope::Unknown),
             vec![InstallScope::Unknown]
         );
-        assert!(!CliBackend::uninstall_args("Example.App", None, InstallScope::Unknown)
-            .contains(&"--scope"));
+        assert!(
+            !CliBackend::uninstall_args("Example.App", None, InstallScope::Unknown)
+                .contains(&"--scope")
+        );
     }
 
     #[test]

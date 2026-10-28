@@ -1062,12 +1062,7 @@ mod tests {
         async fn install(&self, _: &str, _: Option<&str>) -> Result<String> {
             Ok(String::new())
         }
-        async fn uninstall(
-            &self,
-            _: &str,
-            _: Option<&str>,
-            _: InstallScope,
-        ) -> Result<String> {
+        async fn uninstall(&self, _: &str, _: Option<&str>, _: InstallScope) -> Result<String> {
             Ok(String::new())
         }
         async fn upgrade(&self, _: &str, _: InstallScope) -> Result<String> {

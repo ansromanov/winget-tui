@@ -285,16 +285,28 @@ pub struct Source {
 
 #[derive(Debug, Clone)]
 pub enum Operation {
-    Install { id: String, version: Option<String> },
+    Install {
+        id: String,
+        version: Option<String>,
+    },
     Uninstall {
         id: String,
         source: Option<String>,
         scope: InstallScope,
     },
-    Upgrade { id: String, scope: InstallScope },
-    Pin { id: String },
-    Unpin { id: String },
-    BatchUpgrade { packages: Vec<UpgradeTarget> },
+    Upgrade {
+        id: String,
+        scope: InstallScope,
+    },
+    Pin {
+        id: String,
+    },
+    Unpin {
+        id: String,
+    },
+    BatchUpgrade {
+        packages: Vec<UpgradeTarget>,
+    },
     BatchUninstall {
         packages: Vec<UninstallTarget>,
     },
@@ -529,10 +541,7 @@ mod tests {
             source: None,
             scope: InstallScope::Both,
         };
-        assert_eq!(
-            op.to_string(),
-            "Uninstalling Google.Chrome (both scopes)"
-        );
+        assert_eq!(op.to_string(), "Uninstalling Google.Chrome (both scopes)");
     }
 
     #[test]
